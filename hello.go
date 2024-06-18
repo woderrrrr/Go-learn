@@ -8,5 +8,4 @@ func main() {
 	b := make([]int, 3)
 	b = append(b, 1)
 	fmt.Printf("%T,%v\n", a, a)
-	fmt.Printf("%T,%v\n", b, b)
 }
