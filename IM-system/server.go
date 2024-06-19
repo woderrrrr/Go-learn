@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"sync"
 )
@@ -43,7 +44,8 @@ func (this *Server) BroadCast(user *User, msg string) {
 }
 func (this *Server) process(conn net.Conn) {
 	defer conn.Close()
-	fmt.Println("链接建立成功,田文镜，我草泥马")
+	fmt.Println("连接建立成功,别丢份儿啊！",
+		"田文镜，我草泥马")
 	//buffer := make([]byte, 1024)
 	//用户上线，将用户加入到onlineMap中
 	user := Newuser(conn)
@@ -53,6 +55,22 @@ func (this *Server) process(conn net.Conn) {
 	this.maplock.Unlock()
 	this.BroadCast(user, "已上线")
 
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			n, err := conn.Read(buf)
+			if n == 0 {
+				this.BroadCast(user, "下线")
+				return
+			}
+			if err != nil && err != io.EOF {
+				fmt.Println("conn.Read err:", err)
+				return
+			}
+			msg := string(buf[:n-1])
+			this.BroadCast(user, msg)
+		}
+	}()
 	select {}
 }
 
@@ -65,13 +83,16 @@ func (this *Server) Start() {
 	defer listener.Close()
 
 	go this.ListenMessage()
-
+	i := 0
 	for {
+
 		conn, err := listener.Accept()
 		if err != nil {
 			fmt.Println("listener.Accept err:", err)
 			continue
 		}
 		go this.process(conn)
+		i++
+		fmt.Printf("第%v次连接\n", i)
 	}
 }
