@@ -76,7 +76,7 @@ func (this *Server) process(conn net.Conn) {
 		select {
 		case <-Islive:
 			// 阻塞
-		case <-time.After(time.Second * 20):
+		case <-time.After(time.Second * 200):
 			// 阻塞
 			user.SendMsg("你被踢了")
 			close(user.C)

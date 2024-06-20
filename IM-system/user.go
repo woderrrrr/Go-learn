@@ -1,6 +1,9 @@
 package main
 
-import "net"
+import (
+	"net"
+	"strings"
+)
 
 type User struct {
 	Name string
@@ -54,11 +57,34 @@ func (this *User) DoMessage(msg string) {
 		return
 	} else if len(msg) > 7 && msg[:7] == "rename|" {
 		this.server.maplock.Lock()
-		this.server.OnlineMap[msg[7:]] = this
+		newname := msg[7:]
 		delete(this.server.OnlineMap, this.Name)
-		this.Name = msg[7:]
+		this.server.OnlineMap[newname] = this
+		this.Name = newname
 		this.server.maplock.Unlock()
-		this.SendMsg("已修改用户名")
+		this.SendMsg("已修改用户名\n")
+	} else if len(msg) > 4 && msg[:3] == "to|" {
+		remotename := strings.Split(msg, "|")[1]
+
+		if remotename == "" {
+			this.SendMsg("消息格式不正确，请使用\"to|张三|你好\"。\n")
+			return
+		}
+		if remotename == this.Name {
+			this.SendMsg("不能给自己发送消息。\n")
+			return
+		}
+
+		remoteuser, ok := this.server.OnlineMap[remotename]
+		if !ok {
+			this.SendMsg("该用户不存在。\n")
+			return
+		}
+
+		content := strings.Split(msg, "|")[2]
+		remoteuser.SendMsg(this.Name + "对你说:" + content)
+	} else if msg == "me" {
+		this.SendMsg("我的用户名是:\n" + this.Name + "\n")
 	} else {
 		this.server.BroadCast(this, msg)
 	}
