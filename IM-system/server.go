@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 )
 
 type Server struct {
@@ -48,19 +49,17 @@ func (this *Server) process(conn net.Conn) {
 		"田文镜，我草泥马")
 	//buffer := make([]byte, 1024)
 	//用户上线，将用户加入到onlineMap中
-	user := Newuser(conn)
+	user := Newuser(conn, this)
 
-	this.maplock.Lock()
-	this.OnlineMap[user.Name] = user
-	this.maplock.Unlock()
-	this.BroadCast(user, "已上线")
+	user.Online()
 
+	Islive := make(chan bool)
 	go func() {
 		buf := make([]byte, 4096)
 		for {
 			n, err := conn.Read(buf)
 			if n == 0 {
-				this.BroadCast(user, "下线")
+				user.Offline()
 				return
 			}
 			if err != nil && err != io.EOF {
@@ -68,10 +67,23 @@ func (this *Server) process(conn net.Conn) {
 				return
 			}
 			msg := string(buf[:n-1])
-			this.BroadCast(user, msg)
+
+			user.DoMessage(msg)
+			Islive <- true
 		}
 	}()
-	select {}
+	for {
+		select {
+		case <-Islive:
+			// 阻塞
+		case <-time.After(time.Second * 20):
+			// 阻塞
+			user.SendMsg("你被踢了")
+			close(user.C)
+			conn.Close()
+			return
+		}
+	}
 }
 
 func (this *Server) Start() {
